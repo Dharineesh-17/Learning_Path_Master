@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PathMaster // World Level</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #ffffff; --accent: #3b82f6; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #000; color: #fff;
+            scroll-behavior: smooth;
+        }
+
+        .glow-follow {
+            position: fixed; width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+            border-radius: 50%; pointer-events: none; z-index: 0;
+            transform: translate(-50%, -50%); transition: width 0.3s, height 0.3s;
+        }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .premium-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 40px; padding: 40px;
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            position: relative; overflow: hidden;
+        }
+
+        .premium-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-10px);
+        }
+
+        /* Login Modal Overlay */
+        #login-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(20px); z-index: 100;
+            display: none; align-items: center; justify-content: center;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        .animate-reveal { animation: slideUp 1s cubic-bezier(0.19, 1, 0.22, 1) forwards; }
+    </style>
+</head>
+<body class="overflow-x-hidden">
+
+    <div class="glow-follow" id="cursor-glow"></div>
+
+    <div id="login-overlay">
+        <div class="w-full max-w-md p-12 border border-white/5 bg-zinc-900/20 rounded-[40px] animate-reveal">
+            <h2 class="text-4xl font-extrabold tracking-tighter italic uppercase mb-8">Identity<br><span class="text-zinc-500">Verified.</span></h2>
+            <div class="space-y-4">
+                <input type="text" id="user-id" placeholder="ARCHITECT NAME" class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none focus:border-blue-500 transition-all text-xs tracking-widest uppercase">
+                <button onclick="login()" class="w-full py-5 bg-white text-black font-black uppercase text-[10px] tracking-[0.3em] rounded-2xl hover:bg-blue-600 hover:text-white transition-all">Establish Connection</button>
+            </div>
+            <button onclick="toggleLogin(false)" class="w-full mt-4 text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Abort Signal</button>
+        </div>
+    </div>
+
+    <nav class="p-8 flex justify-between items-center relative z-10">
+        <div class="font-black text-xl tracking-tighter">PM<span class="text-blue-500">.</span></div>
+        <div id="user-stats" class="hidden flex gap-6 text-[10px] font-bold text-blue-500 uppercase tracking-widest">
+            <span>Rank: Architect</span>
+            <span>Mastery: <span id="mastery-val">0</span>%</span>
+        </div>
+        <div class="hidden md:flex gap-8 text-[10px] font-bold uppercase tracking-widest text-zinc-500 items-center">
+            <a href="#" class="hover:text-white transition-colors">Framework</a>
+            <a href="#" class="hover:text-white transition-colors">Architecture</a>
+            <button id="auth-btn" onclick="toggleLogin(true)" class="border border-white/10 px-6 py-2 rounded-full hover:bg-white hover:text-black transition-all">Elite Access</button>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-8 pt-20 pb-40 relative z-10">
+        <div class="max-w-3xl mb-32 animate-reveal" id="hero-section">
+            <h1 class="text-7xl md:text-9xl font-extrabold tracking-tighter mb-8 leading-[0.9]">
+                Architect <br><span class="text-zinc-500">Your Legacy.</span>
+            </h1>
+            <p class="text-zinc-400 text-lg mb-12 max-w-xl font-light leading-relaxed">
+                Stop searching. Start engineering. Our neural engine builds world-level mastery paths in seconds.
+            </p>
+            
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" id="topic" placeholder="What will you master today?" 
+                       class="flex-1 bg-zinc-900/50 border border-zinc-800 p-6 rounded-3xl outline-none focus:border-blue-500 transition-all text-lg">
+                <button onclick="build()" class="px-12 py-6 bg-white text-black font-bold rounded-3xl hover:bg-blue-500 hover:text-white transition-all shadow-2xl">
+                    Build Path
+                </button>
+            </div>
+        </div>
+
+        <div id="results" class="bento-grid"></div>
+    </main>
+
+    <script>
+        // Persistence Logic
+        let currentUser = localStorage.getItem('pm_user') || null;
+        if(currentUser) updateUIForUser();
+
+        function toggleLogin(show) {
+            document.getElementById('login-overlay').style.display = show ? 'flex' : 'none';
+        }
+
+        function login() {
+            const id = document.getElementById('user-id').value;
+            if(!id) return;
+            localStorage.setItem('pm_user', id);
+            currentUser = id;
+            updateUIForUser();
+            toggleLogin(false);
+        }
+
+        function updateUIForUser() {
+            document.getElementById('auth-btn').innerText = currentUser.toUpperCase();
+            document.getElementById('user-stats').classList.remove('hidden');
+            // Mocking mastery stat
+            document.getElementById('mastery-val').innerText = Math.floor(Math.random() * 20 + 10);
+        }
+
+        // Cursor Logic
+        const glow = document.getElementById('cursor-glow');
+        document.addEventListener('mousemove', (e) => {
+            glow.style.left = e.clientX + 'px';
+            glow.style.top = e.clientY + 'px';
+        });
+
+        async function build() {
+            const topic = document.getElementById('topic').value;
+            const results = document.getElementById('results');
+
+            if(!topic) return;
+            results.innerHTML = '<div class="col-span-full text-center py-20 animate-pulse text-zinc-500 uppercase tracking-widest text-xs">Assembling Intelligence...</div>';
+
+            try {
+                const res = await fetch(`/generate?topic=${encodeURIComponent(topic)}`);
+                const data = await res.json();
+                results.innerHTML = "";
+
+                data.steps.forEach((step, i) => {
+                    const card = document.createElement('div');
+                    card.className = "premium-card animate-reveal";
+                    card.style.animationDelay = `${i * 0.1}s`;
+                    
+                    card.innerHTML = `
+                        <div class="relative z-10">
+                            <div class="flex justify-between items-start mb-12">
+                                <div class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-blue-500">
+                                    0${i+1}
+                                </div>
+                                <div class="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">${step.time}</div>
+                            </div>
+                            <h3 class="text-3xl font-bold mb-4 tracking-tight uppercase italic">${step.title}</h3>
+                            <p class="text-zinc-400 leading-relaxed text-sm mb-10">${step.desc || step.strategy}</p>
+                            
+                            <div class="pt-6 border-t border-white/5 flex justify-between items-center">
+                                <a href="${step.link}" target="_blank" class="text-[10px] font-black uppercase tracking-widest hover:text-blue-500 transition-colors">Access Asset ↗</a>
+                                <button onclick="markComplete(${i})" class="w-2 h-2 rounded-full bg-zinc-800 hover:bg-blue-500 transition-all"></button>
+                            </div>
+                        </div>
+                    `;
+                    results.appendChild(card);
+                });
+            } catch (err) {
+                results.innerHTML = "Error connecting to the neural core.";
+            }
+        }
+
+        function markComplete(index) {
+            if(!currentUser) {
+                toggleLogin(true);
+                return;
+            }
+           
+        }
+    </script>
+</body>
+</html>
